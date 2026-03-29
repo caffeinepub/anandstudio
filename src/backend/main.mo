@@ -12,10 +12,10 @@ import Storage "blob-storage/Storage";
 import MixinStorage "blob-storage/Mixin";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
-import Migration "migration";
+
 import Time "mo:core/Time";
 
-(with migration = Migration.run)
+
 actor {
   type Category = {
     #weddings;

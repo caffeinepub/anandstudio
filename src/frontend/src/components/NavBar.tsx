@@ -1,11 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Camera, Menu, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useNavigate } from "@tanstack/react-router";
+import { Camera, Menu, MoreVertical, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useIsAdmin } from "../hooks/useQueries";
 
 const NAV_LINKS = [
   { label: "Home", href: "#home" },
@@ -18,10 +21,9 @@ const NAV_LINKS = [
 export default function NavBar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { login, clear, loginStatus, identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
-  const { data: isAdmin } = useIsAdmin();
-  const isAuthenticated = !!identity;
+  const [galleryToken, setGalleryToken] = useState("");
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -29,27 +31,18 @@ export default function NavBar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const handleAuth = async () => {
-    if (isAuthenticated) {
-      await clear();
-      queryClient.clear();
-    } else {
-      try {
-        await login();
-      } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : "";
-        if (msg === "User is already authenticated") {
-          await clear();
-          setTimeout(() => login(), 300);
-        }
-      }
-    }
-  };
-
   const scrollTo = (href: string) => {
     setMobileOpen(false);
     const el = document.querySelector(href);
     el?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const openGallery = () => {
+    const token = galleryToken.trim();
+    if (!token) return;
+    setPopoverOpen(false);
+    setGalleryToken("");
+    navigate({ to: "/gallery/$token", params: { token } });
   };
 
   return (
@@ -62,8 +55,8 @@ export default function NavBar() {
     >
       <nav className="max-w-7xl mx-auto px-6 h-16 md:h-20 flex items-center justify-between">
         {/* Logo */}
-        <Link
-          to="/"
+        <a
+          href="/"
           className="flex items-center gap-2 group"
           data-ocid="nav.link"
         >
@@ -71,7 +64,7 @@ export default function NavBar() {
           <span className="font-display text-lg md:text-xl text-foreground tracking-widest uppercase">
             Anandstudio
           </span>
-        </Link>
+        </a>
 
         {/* Desktop Nav */}
         <ul className="hidden md:flex items-center gap-8">
@@ -89,48 +82,64 @@ export default function NavBar() {
           ))}
         </ul>
 
-        {/* Right side */}
-        <div className="hidden md:flex items-center gap-3">
-          {isAdmin && (
-            <Link to="/admin">
+        {/* Right side — 3-dot popover */}
+        <div className="flex items-center">
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                aria-label="Client gallery access"
+                data-ocid="nav.open_modal_button"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-72 bg-card border border-border shadow-xl p-4"
+              data-ocid="nav.popover"
+            >
+              <p className="text-[10px] tracking-widest uppercase text-muted-foreground mb-1">
+                Client Gallery Access
+              </p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Enter the code or token from your link
+              </p>
+              <Input
+                placeholder="e.g. abc123"
+                value={galleryToken}
+                onChange={(e) => setGalleryToken(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && openGallery()}
+                className="mb-3 bg-background border-border text-sm"
+                data-ocid="nav.input"
+              />
               <Button
-                variant="outline"
                 size="sm"
-                className="border-primary text-primary hover:bg-primary hover:text-primary-foreground tracking-widest text-xs uppercase"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 tracking-widest text-xs uppercase"
+                disabled={!galleryToken.trim()}
+                onClick={openGallery}
                 data-ocid="nav.primary_button"
               >
-                Admin
+                Open Gallery
               </Button>
-            </Link>
-          )}
-          <Button
-            onClick={handleAuth}
-            disabled={loginStatus === "logging-in"}
-            size="sm"
-            className="bg-primary text-primary-foreground hover:bg-primary/90 tracking-widest text-xs uppercase"
-            data-ocid="nav.secondary_button"
-          >
-            {loginStatus === "logging-in"
-              ? "..."
-              : isAuthenticated
-                ? "Logout"
-                : "Login"}
-          </Button>
-        </div>
+            </PopoverContent>
+          </Popover>
 
-        {/* Mobile menu button */}
-        <button
-          type="button"
-          className="md:hidden text-foreground"
-          onClick={() => setMobileOpen((v) => !v)}
-          data-ocid="nav.toggle"
-        >
-          {mobileOpen ? (
-            <X className="w-6 h-6" />
-          ) : (
-            <Menu className="w-6 h-6" />
-          )}
-        </button>
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            className="md:hidden text-foreground ml-1"
+            onClick={() => setMobileOpen((v) => !v)}
+            data-ocid="nav.toggle"
+          >
+            {mobileOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile menu */}
@@ -156,29 +165,6 @@ export default function NavBar() {
                   </button>
                 </li>
               ))}
-              <li className="pt-2 flex flex-col gap-2">
-                {isAdmin && (
-                  <Link to="/admin" onClick={() => setMobileOpen(false)}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full border-primary text-primary tracking-widest text-xs uppercase"
-                      data-ocid="nav.primary_button"
-                    >
-                      Admin
-                    </Button>
-                  </Link>
-                )}
-                <Button
-                  onClick={handleAuth}
-                  disabled={loginStatus === "logging-in"}
-                  size="sm"
-                  className="w-full bg-primary text-primary-foreground tracking-widest text-xs uppercase"
-                  data-ocid="nav.secondary_button"
-                >
-                  {isAuthenticated ? "Logout" : "Login"}
-                </Button>
-              </li>
             </ul>
           </motion.div>
         )}
