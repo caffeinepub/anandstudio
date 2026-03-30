@@ -5,8 +5,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useActor } from "@/hooks/useActor";
 import { useNavigate } from "@tanstack/react-router";
-import { Camera, Menu, MoreVertical, X } from "lucide-react";
+import {
+  AlignJustify,
+  Camera,
+  Eye,
+  EyeOff,
+  Menu,
+  MoreVertical,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -23,7 +32,14 @@ export default function NavBar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [galleryToken, setGalleryToken] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [adminPopoverOpen, setAdminPopoverOpen] = useState(false);
+  const [adminIdentifier, setAdminIdentifier] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [adminError, setAdminError] = useState("");
+  const [adminLoading, setAdminLoading] = useState(false);
   const navigate = useNavigate();
+  const { actor } = useActor();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -43,6 +59,50 @@ export default function NavBar() {
     setPopoverOpen(false);
     setGalleryToken("");
     navigate({ to: "/gallery/$token", params: { token } });
+  };
+
+  const handleAdminIconClick = async () => {
+    if (!actor) {
+      setAdminPopoverOpen(true);
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isSetup: boolean = await (actor as any).isAdminSetup();
+      if (!isSetup) {
+        navigate({ to: "/admin" });
+        return;
+      }
+    } catch {
+      // fallback: open popover
+    }
+    setAdminError("");
+    setAdminIdentifier("");
+    setAdminPassword("");
+    setAdminPopoverOpen(true);
+  };
+
+  const handleAdminLogin = async () => {
+    const id = adminIdentifier.trim();
+    const pw = adminPassword.trim();
+    if (!id || !pw || !actor) return;
+    setAdminLoading(true);
+    setAdminError("");
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const token: string | null = await (actor as any).adminLogin(id, pw);
+      if (token) {
+        localStorage.setItem("anandstudio_admin_token", token);
+        setAdminPopoverOpen(false);
+        navigate({ to: "/admin" });
+      } else {
+        setAdminError("Invalid credentials. Please try again.");
+      }
+    } catch {
+      setAdminError("Login failed. Please try again.");
+    } finally {
+      setAdminLoading(false);
+    }
   };
 
   return (
@@ -82,8 +142,9 @@ export default function NavBar() {
           ))}
         </ul>
 
-        {/* Right side — 3-dot popover */}
+        {/* Right side icons */}
         <div className="flex items-center">
+          {/* Client gallery 3-dot popover */}
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
               <button
@@ -123,6 +184,90 @@ export default function NavBar() {
               >
                 Open Gallery
               </Button>
+            </PopoverContent>
+          </Popover>
+
+          {/* Admin 3-line icon (desktop only) */}
+          <Popover open={adminPopoverOpen} onOpenChange={setAdminPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="hidden md:flex p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                aria-label="Admin access"
+                data-ocid="admin.open_modal_button"
+                onClick={handleAdminIconClick}
+              >
+                <AlignJustify className="w-5 h-5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-72 bg-card border border-border shadow-xl p-4"
+              data-ocid="admin.dialog"
+            >
+              <p className="text-[10px] tracking-widest uppercase text-muted-foreground mb-1">
+                Admin Access
+              </p>
+              <p className="text-xs text-muted-foreground mb-4">
+                Sign in to manage your studio
+              </p>
+              <div className="space-y-3">
+                <Input
+                  placeholder="Email or phone number"
+                  type="text"
+                  value={adminIdentifier}
+                  onChange={(e) => setAdminIdentifier(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+                  className="bg-background border-border text-sm"
+                  data-ocid="admin.input"
+                />
+                <div className="relative">
+                  <Input
+                    placeholder="Password"
+                    type={showPassword ? "text" : "password"}
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+                    className="bg-background border-border text-sm pr-10"
+                    data-ocid="admin.input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                {adminError && (
+                  <p
+                    className="text-xs text-destructive"
+                    data-ocid="admin.error_state"
+                  >
+                    {adminError}
+                  </p>
+                )}
+                <Button
+                  size="sm"
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 tracking-widest text-xs uppercase"
+                  disabled={
+                    !adminIdentifier.trim() ||
+                    !adminPassword.trim() ||
+                    adminLoading
+                  }
+                  onClick={handleAdminLogin}
+                  data-ocid="admin.submit_button"
+                >
+                  {adminLoading ? "Signing in\u2026" : "Sign In"}
+                </Button>
+              </div>
             </PopoverContent>
           </Popover>
 
