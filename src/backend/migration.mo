@@ -1,7 +1,7 @@
 import Map "mo:core/Map";
+import Text "mo:core/Text";
 import Nat "mo:core/Nat";
-import Time "mo:core/Time";
-import Storage "blob-storage/Storage";
+import Principal "mo:core/Principal";
 
 module {
   type Category = {
@@ -11,148 +11,112 @@ module {
     #commercial;
   };
 
-  // Old Types
-  type OldPhoto = {
+  type Photo = {
     id : Text;
     title : Text;
     category : Category;
-    blob : Storage.ExternalBlob;
+    blob : Blob;
   };
 
-  type OldClientGallery = {
-    id : Text;
-    name : Text;
-    token : Text;
-    photos : [OldGalleryPhoto];
-    createdAt : Int;
-  };
-
-  type OldGalleryPhoto = {
-    id : Text;
-    title : Text;
-    blob : Storage.ExternalBlob;
-  };
-
-  type OldClientSelection = {
-    galleryId : Text;
-    selectedPhotoIds : [Text];
-    customerNote : Text;
-    submittedAt : Int;
-  };
-
-  type OldService = {
+  type Service = {
     id : Text;
     name : Text;
     description : Text;
     priceRange : Text;
   };
 
-  type OldUserProfile = {
-    name : Text;
-  };
-
-  type OldActor = {
-    photos : Map.Map<Text, OldPhoto>;
-    services : Map.Map<Text, OldService>;
-    userProfiles : Map.Map<Principal, OldUserProfile>;
-    clientGalleries : Map.Map<Text, OldClientGallery>;
-    galleryTokens : Map.Map<Text, Text>;
-    gallerySelections : Map.Map<Text, OldClientSelection>;
-    nextPhotoId : Nat;
-    nextServiceId : Nat;
-    aboutText : Text;
-    contactInfo : Text;
-    nextGalleryId : Nat;
-    nextGalleryPhotoId : Nat;
-  };
-
-  // New Types
-  type NewPhoto = {
+  type GalleryPhoto = {
     id : Text;
     title : Text;
-    category : Category;
-    blob : Storage.ExternalBlob;
+    blob : Blob;
   };
 
-  type NewClientGallery = {
+  type ClientGallery = {
     id : Text;
     name : Text;
     token : Text;
     accessCode : ?Text;
-    photos : [NewGalleryPhoto];
+    photos : [GalleryPhoto];
     createdAt : Int;
   };
 
-  type NewGalleryPhoto = {
-    id : Text;
-    title : Text;
-    blob : Storage.ExternalBlob;
-  };
-
-  type NewClientSelection = {
+  type ClientSelection = {
     galleryId : Text;
     selectedPhotoIds : [Text];
     customerNote : Text;
     submittedAt : Int;
   };
 
-  type NewService = {
-    id : Text;
-    name : Text;
-    description : Text;
-    priceRange : Text;
+  type UserRole = {
+    #admin;
+    #user;
+    #guest;
   };
 
-  type NewUserProfile = {
+  // Old UserProfile without email/phone fields
+  type OldUserProfile = {
     name : Text;
   };
 
-  type NewActor = {
-    photos : Map.Map<Text, NewPhoto>;
-    services : Map.Map<Text, NewService>;
-    userProfiles : Map.Map<Principal, NewUserProfile>;
-    clientGalleries : Map.Map<Text, NewClientGallery>;
-    galleryTokens : Map.Map<Text, Text>;
-    gallerySelections : Map.Map<Text, NewClientSelection>;
+  // Old AccessControlState with mutable adminAssigned
+  type OldAccessControlState = {
+    var adminAssigned : Bool;
+    userRoles : Map.Map<Principal, UserRole>;
+  };
+
+  // OldActor matches the actual deployed stable state
+  type OldActor = {
+    accessControlState : OldAccessControlState;
     nextPhotoId : Nat;
+    photos : Map.Map<Text, Photo>;
+    services : Map.Map<Text, Service>;
     nextServiceId : Nat;
-    aboutText : Text;
-    contactInfo : Text;
     nextGalleryId : Nat;
     nextGalleryPhotoId : Nat;
+    clientGalleries : Map.Map<Text, ClientGallery>;
+    galleryTokens : Map.Map<Text, Text>;
+    gallerySelections : Map.Map<Text, ClientSelection>;
+    userProfiles : Map.Map<Principal, OldUserProfile>;
+    aboutText : Text;
+    contactInfo : Text;
+  };
+
+  // NewActor matches new main.mo stable variables
+  type NewActor = {
+    adminIdentifier : ?Text;
+    adminPassword : ?Text;
+    adminSessionToken : ?Text;
+    sessionExpiry : Int;
+    photoCounter : Nat;
+    photos : Map.Map<Text, Photo>;
+    services : Map.Map<Text, Service>;
+    nextServiceId : Nat;
+    nextGalleryId : Nat;
+    nextGalleryPhotoId : Nat;
+    clientGalleries : Map.Map<Text, ClientGallery>;
+    galleryTokens : Map.Map<Text, Text>;
+    gallerySelections : Map.Map<Text, ClientSelection>;
+    aboutText : Text;
+    contactInfo : Text;
   };
 
   public func run(old : OldActor) : NewActor {
-    let newPhotos = old.photos;
-    let newServices = old.services;
-    let newUserProfiles = old.userProfiles;
-    let newClientGalleries = old.clientGalleries.map<Text, OldClientGallery, NewClientGallery>(
-      func(_id, oldGallery) {
-        {
-          oldGallery with
-          accessCode = null;
-        };
-      }
-    );
-    let newGalleryTokens = old.galleryTokens;
-    let newGallerySelections = old.gallerySelections;
-
-    let newAboutText = old.aboutText;
-    let newContactInfo = old.contactInfo;
-
     {
-      photos = newPhotos;
-      services = newServices;
-      userProfiles = newUserProfiles;
-      clientGalleries = newClientGalleries;
-      galleryTokens = newGalleryTokens;
-      gallerySelections = newGallerySelections;
-      nextPhotoId = old.nextPhotoId;
+      adminIdentifier = null;
+      adminPassword = null;
+      adminSessionToken = null;
+      sessionExpiry = 0;
+      photoCounter = old.nextPhotoId;
+      photos = old.photos;
+      services = old.services;
       nextServiceId = old.nextServiceId;
-      aboutText = newAboutText;
-      contactInfo = newContactInfo;
       nextGalleryId = old.nextGalleryId;
       nextGalleryPhotoId = old.nextGalleryPhotoId;
+      clientGalleries = old.clientGalleries;
+      galleryTokens = old.galleryTokens;
+      gallerySelections = old.gallerySelections;
+      aboutText = old.aboutText;
+      contactInfo = old.contactInfo;
     };
   };
 };

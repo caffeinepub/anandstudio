@@ -71,30 +71,18 @@ export function useGetContactInfo() {
   });
 }
 
-export function useIsAdmin() {
-  const { actor, isFetching } = useActor();
-  return useQuery<boolean>({
-    queryKey: ["isAdmin"],
-    queryFn: async () => {
-      if (!actor) return false;
-      return actor.isCallerAdmin();
-    },
-    enabled: !!actor && !isFetching,
-    retry: false,
-  });
-}
-
-export function useAllClientGalleries() {
+export function useAllClientGalleries(sessionToken: string | null) {
   const { actor, isFetching } = useActor();
   return useQuery<
     Array<{ selection?: ClientSelection; gallery: ClientGallery }>
   >({
-    queryKey: ["clientGalleries"],
+    queryKey: ["clientGalleries", sessionToken],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.getAllClientGalleries();
+      if (!actor || !sessionToken) return [];
+      // New API: getAllClientGalleries(sessionToken)
+      return (actor as any).getAllClientGalleries(sessionToken);
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor && !isFetching && !!sessionToken,
   });
 }
 
@@ -115,11 +103,13 @@ export function useAddPhoto() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
+      sessionToken,
       title,
       category,
       file,
       onProgress,
     }: {
+      sessionToken: string;
       title: string;
       category: Category;
       file: Uint8Array<ArrayBuffer>;
@@ -129,7 +119,8 @@ export function useAddPhoto() {
       const blob = onProgress
         ? ExternalBlob.fromBytes(file).withUploadProgress(onProgress)
         : ExternalBlob.fromBytes(file);
-      await actor.addPhoto(title, category, blob);
+      // New API: addPhoto(sessionToken, title, category, blob)
+      await (actor as any).addPhoto(sessionToken, title, category, blob);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["photos"] });
@@ -141,9 +132,16 @@ export function useDeletePhoto() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({
+      sessionToken,
+      id,
+    }: {
+      sessionToken: string;
+      id: string;
+    }) => {
       if (!actor) throw new Error("Not connected");
-      await actor.deletePhoto(id);
+      // New API: deletePhoto(sessionToken, id)
+      await (actor as any).deletePhoto(sessionToken, id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["photos"] });
@@ -156,12 +154,19 @@ export function useAddService() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (s: {
+      sessionToken: string;
       name: string;
       description: string;
       priceRange: string;
     }) => {
       if (!actor) throw new Error("Not connected");
-      await actor.addService(s.name, s.description, s.priceRange);
+      // New API: addService(sessionToken, name, description, priceRange)
+      await (actor as any).addService(
+        s.sessionToken,
+        s.name,
+        s.description,
+        s.priceRange,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["services"] });
@@ -174,13 +179,21 @@ export function useUpdateService() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (s: {
+      sessionToken: string;
       id: string;
       name: string;
       description: string;
       priceRange: string;
     }) => {
       if (!actor) throw new Error("Not connected");
-      await actor.updateService(s.id, s.name, s.description, s.priceRange);
+      // New API: updateService(sessionToken, id, name, description, priceRange)
+      await (actor as any).updateService(
+        s.sessionToken,
+        s.id,
+        s.name,
+        s.description,
+        s.priceRange,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["services"] });
@@ -192,9 +205,16 @@ export function useDeleteService() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({
+      sessionToken,
+      id,
+    }: {
+      sessionToken: string;
+      id: string;
+    }) => {
       if (!actor) throw new Error("Not connected");
-      await actor.deleteService(id);
+      // New API: deleteService(sessionToken, id)
+      await (actor as any).deleteService(sessionToken, id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["services"] });
@@ -206,9 +226,16 @@ export function useUpdateAbout() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (text: string) => {
+    mutationFn: async ({
+      sessionToken,
+      text,
+    }: {
+      sessionToken: string;
+      text: string;
+    }) => {
       if (!actor) throw new Error("Not connected");
-      await actor.updateAbout(text);
+      // New API: updateAbout(sessionToken, text)
+      await (actor as any).updateAbout(sessionToken, text);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["about"] });
@@ -220,9 +247,16 @@ export function useUpdateContactInfo() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (info: string) => {
+    mutationFn: async ({
+      sessionToken,
+      info,
+    }: {
+      sessionToken: string;
+      info: string;
+    }) => {
       if (!actor) throw new Error("Not connected");
-      await actor.updateContactInfo(info);
+      // New API: updateContactInfo(sessionToken, info)
+      await (actor as any).updateContactInfo(sessionToken, info);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["contact"] });

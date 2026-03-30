@@ -1,4 +1,3 @@
-import type { Principal } from "@icp-sdk/core/principal";
 export interface Some<T> {
     __kind__: "Some";
     value: T;
@@ -13,9 +12,6 @@ export class ExternalBlob {
     static fromURL(url: string): ExternalBlob;
     static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob;
     withUploadProgress(onProgress: (percentage: number) => void): ExternalBlob;
-}
-export interface UserProfile {
-    name: string;
 }
 export interface GalleryPhoto {
     id: string;
@@ -66,39 +62,45 @@ export enum Category {
     weddings = "weddings",
     portraits = "portraits"
 }
-export enum UserRole {
-    admin = "admin",
-    user = "user",
-    guest = "guest"
-}
 export interface backendInterface {
-    addPhoto(title: string, category: Category, blob: ExternalBlob): Promise<void>;
-    addService(name: string, description: string, priceRange: string): Promise<void>;
-    assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    createClientGallery(name: string, photos: Array<ExternalBlob>, accessCode: string | null): Promise<string>;
-    deleteClientGallery(galleryId: string): Promise<void>;
-    deletePhoto(id: string): Promise<void>;
-    deleteService(id: string): Promise<void>;
+    // Auth
+    isAdminSetup(): Promise<boolean>;
+    setupAdmin(identifier: string, password: string): Promise<boolean>;
+    adminLogin(identifier: string, password: string): Promise<string | null>;
+    adminLogout(sessionToken: string): Promise<void>;
+    verifyAdminToken(sessionToken: string): Promise<boolean>;
+    changeAdminPassword(sessionToken: string, currentPassword: string, newPassword: string): Promise<boolean>;
+    // Photos
+    addPhoto(sessionToken: string, title: string, category: Category, blob: ExternalBlob): Promise<string>;
+    deletePhoto(sessionToken: string, id: string): Promise<void>;
+    getAllPhotos(): Promise<Array<Photo>>;
+    getPhotosByCategory(category: Category): Promise<Array<Photo>>;
+    // Services
+    addService(sessionToken: string, name: string, description: string, priceRange: string): Promise<void>;
+    updateService(sessionToken: string, id: string, name: string, description: string, priceRange: string): Promise<void>;
+    deleteService(sessionToken: string, id: string): Promise<void>;
+    getAllServices(): Promise<Array<Service>>;
+    // About & Contact
+    updateAbout(sessionToken: string, text: string): Promise<void>;
     getAbout(): Promise<string>;
-    getAllClientGalleries(): Promise<Array<{
+    updateContactInfo(sessionToken: string, info: string): Promise<void>;
+    getContactInfo(): Promise<string>;
+    // Client Galleries
+    createClientGallery(sessionToken: string, name: string, photos: Array<ExternalBlob>, accessCode: string | null): Promise<string>;
+    deleteClientGallery(sessionToken: string, galleryId: string): Promise<void>;
+    getAllClientGalleries(sessionToken: string): Promise<Array<{
         selection?: ClientSelection;
         gallery: ClientGallery;
     }>>;
-    getAllClientSelections(): Promise<Array<ClientSelection>>;
-    getAllPhotos(): Promise<Array<Photo>>;
-    getAllServices(): Promise<Array<Service>>;
-    getCallerUserProfile(): Promise<UserProfile | null>;
-    getCallerUserRole(): Promise<UserRole>;
     getClientGalleryByToken(token: string): Promise<GalleryAccessResult>;
-    getClientGallerySelection(galleryId: string): Promise<ClientSelection | null>;
-    getContactInfo(): Promise<string>;
-    getPhotosByCategory(category: Category): Promise<Array<Photo>>;
-    getUserProfile(user: Principal): Promise<UserProfile | null>;
-    isCallerAdmin(): Promise<boolean>;
-    saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    submitClientSelection(galleryId: string, token: string, selectedPhotoIds: Array<string>, customerNote: string): Promise<void>;
-    updateAbout(text: string): Promise<void>;
-    updateContactInfo(info: string): Promise<void>;
-    updateService(id: string, name: string, description: string, priceRange: string): Promise<void>;
     verifyGalleryCode(token: string, code: string): Promise<boolean>;
+    submitClientSelection(galleryId: string, token: string, selectedPhotoIds: Array<string>, customerNote: string): Promise<void>;
+    getClientGallerySelection(sessionToken: string, galleryId: string): Promise<ClientSelection | null>;
+    // Storage (internal)
+    _caffeineStorageBlobIsLive(hash: Uint8Array): Promise<boolean>;
+    _caffeineStorageBlobsToDelete(): Promise<Array<Uint8Array>>;
+    _caffeineStorageConfirmBlobDeletion(blobs: Array<Uint8Array>): Promise<void>;
+    _caffeineStorageCreateCertificate(blobHash: string): Promise<{method: string; blob_hash: string}>;
+    _caffeineStorageRefillCashier(refillInformation: {proposed_top_up_amount?: bigint} | null): Promise<{success?: boolean; topped_up_amount?: bigint}>;
+    _caffeineStorageUpdateGatewayPrincipals(): Promise<void>;
 }

@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useGetAbout, useUpdateAbout } from "../../hooks/useQueries";
 
-export default function AboutTab() {
+export default function AboutTab({ sessionToken }: { sessionToken: string }) {
   const { data: about, isLoading } = useGetAbout();
   const updateAbout = useUpdateAbout();
   const [text, setText] = useState("");
@@ -17,7 +17,7 @@ export default function AboutTab() {
 
   const handleSave = async () => {
     try {
-      await updateAbout.mutateAsync(text);
+      await updateAbout.mutateAsync({ sessionToken, text });
       toast.success("About section updated.");
     } catch {
       toast.error("Failed to update about section.");

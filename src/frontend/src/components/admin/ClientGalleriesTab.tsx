@@ -65,8 +65,12 @@ function CopyLinkButton({ link }: { link: string }) {
   );
 }
 
-export default function ClientGalleriesTab() {
-  const { data: galleries, isLoading } = useAllClientGalleries();
+export default function ClientGalleriesTab({
+  sessionToken,
+}: {
+  sessionToken: string;
+}) {
+  const { data: galleries, isLoading } = useAllClientGalleries(sessionToken);
   const { actor } = useActor();
   const qc = useQueryClient();
 
@@ -118,14 +122,17 @@ export default function ClientGalleriesTab() {
         }),
       );
       const codeValue = accessCode.trim() || null;
-      const galleryId = await actor.createClientGallery(
+      const a = actor as any;
+      // New API: createClientGallery(sessionToken, name, photos, accessCode)
+      const galleryId = await a.createClientGallery(
+        sessionToken,
         name.trim(),
         blobs,
         codeValue,
       );
-      // Fetch the gallery to get the token
-      const all = await actor.getAllClientGalleries();
-      const created = all.find((g) => g.gallery.id === galleryId);
+      // Fetch the gallery to get the token (new API: getAllClientGalleries(sessionToken))
+      const all = await a.getAllClientGalleries(sessionToken);
+      const created = all.find((g: any) => g.gallery.id === galleryId);
       if (created) {
         const link = `${window.location.origin}/gallery/${created.gallery.token}`;
         setNewGalleryLink(link);
@@ -148,7 +155,8 @@ export default function ClientGalleriesTab() {
   const handleDelete = async (galleryId: string) => {
     if (!actor) return;
     try {
-      await actor.deleteClientGallery(galleryId);
+      // New API: deleteClientGallery(sessionToken, galleryId)
+      await (actor as any).deleteClientGallery(sessionToken, galleryId);
       qc.invalidateQueries({ queryKey: ["clientGalleries"] });
       toast.success("Gallery deleted.");
     } catch {

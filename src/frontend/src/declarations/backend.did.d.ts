@@ -58,7 +58,11 @@ export interface Service {
   'description' : string,
   'priceRange' : string,
 }
-export interface UserProfile { 'name' : string }
+export interface UserProfile {
+  'name' : string,
+  'email' : [] | [string],
+  'phone' : [] | [string],
+}
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
@@ -90,7 +94,7 @@ export interface _SERVICE {
   >,
   '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
-  'addPhoto' : ActorMethod<[string, Category, ExternalBlob], undefined>,
+  'addPhoto' : ActorMethod<[string, Category, ExternalBlob], string>,
   'addService' : ActorMethod<[string, string, string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'createClientGallery' : ActorMethod<
@@ -105,7 +109,6 @@ export interface _SERVICE {
     [],
     Array<{ 'selection' : [] | [ClientSelection], 'gallery' : ClientGallery }>
   >,
-  'getAllClientSelections' : ActorMethod<[], Array<ClientSelection>>,
   'getAllPhotos' : ActorMethod<[], Array<Photo>>,
   'getAllServices' : ActorMethod<[], Array<Service>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,

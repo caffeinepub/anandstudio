@@ -62,7 +62,11 @@ export const Service = IDL.Record({
   'description' : IDL.Text,
   'priceRange' : IDL.Text,
 });
-export const UserProfile = IDL.Record({ 'name' : IDL.Text });
+export const UserProfile = IDL.Record({
+  'name' : IDL.Text,
+  'email' : IDL.Opt(IDL.Text),
+  'phone' : IDL.Opt(IDL.Text),
+});
 export const ClientGalleryPublic = IDL.Record({
   'id' : IDL.Text,
   'token' : IDL.Text,
@@ -104,7 +108,7 @@ export const idlService = IDL.Service({
     ),
   '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
-  'addPhoto' : IDL.Func([IDL.Text, Category, ExternalBlob], [], []),
+  'addPhoto' : IDL.Func([IDL.Text, Category, ExternalBlob], [IDL.Text], []),
   'addService' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'createClientGallery' : IDL.Func(
@@ -126,11 +130,6 @@ export const idlService = IDL.Service({
           })
         ),
       ],
-      ['query'],
-    ),
-  'getAllClientSelections' : IDL.Func(
-      [],
-      [IDL.Vec(ClientSelection)],
       ['query'],
     ),
   'getAllPhotos' : IDL.Func([], [IDL.Vec(Photo)], ['query']),
@@ -224,7 +223,11 @@ export const idlFactory = ({ IDL }) => {
     'description' : IDL.Text,
     'priceRange' : IDL.Text,
   });
-  const UserProfile = IDL.Record({ 'name' : IDL.Text });
+  const UserProfile = IDL.Record({
+    'name' : IDL.Text,
+    'email' : IDL.Opt(IDL.Text),
+    'phone' : IDL.Opt(IDL.Text),
+  });
   const ClientGalleryPublic = IDL.Record({
     'id' : IDL.Text,
     'token' : IDL.Text,
@@ -266,7 +269,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
-    'addPhoto' : IDL.Func([IDL.Text, Category, ExternalBlob], [], []),
+    'addPhoto' : IDL.Func([IDL.Text, Category, ExternalBlob], [IDL.Text], []),
     'addService' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'createClientGallery' : IDL.Func(
@@ -288,11 +291,6 @@ export const idlFactory = ({ IDL }) => {
             })
           ),
         ],
-        ['query'],
-      ),
-    'getAllClientSelections' : IDL.Func(
-        [],
-        [IDL.Vec(ClientSelection)],
         ['query'],
       ),
     'getAllPhotos' : IDL.Func([], [IDL.Vec(Photo)], ['query']),

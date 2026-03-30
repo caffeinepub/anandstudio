@@ -20,7 +20,7 @@ import {
   useGetAllPhotos,
 } from "../../hooks/useQueries";
 
-export default function PhotosTab() {
+export default function PhotosTab({ sessionToken }: { sessionToken: string }) {
   const { data: photos, isLoading } = useGetAllPhotos();
   const addPhoto = useAddPhoto();
   const deletePhoto = useDeletePhoto();
@@ -51,6 +51,7 @@ export default function PhotosTab() {
       const arrayBuffer = await selectedFile.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer) as Uint8Array<ArrayBuffer>;
       await addPhoto.mutateAsync({
+        sessionToken,
         title: title.trim(),
         category,
         file: bytes,
@@ -70,7 +71,7 @@ export default function PhotosTab() {
 
   const handleDelete = async (id: string) => {
     try {
-      await deletePhoto.mutateAsync(id);
+      await deletePhoto.mutateAsync({ sessionToken, id });
       toast.success("Photo deleted.");
     } catch {
       toast.error("Failed to delete photo.");

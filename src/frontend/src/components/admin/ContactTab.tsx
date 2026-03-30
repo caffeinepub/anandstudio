@@ -9,7 +9,7 @@ import {
   useUpdateContactInfo,
 } from "../../hooks/useQueries";
 
-export default function ContactTab() {
+export default function ContactTab({ sessionToken }: { sessionToken: string }) {
   const { data: contactInfo, isLoading } = useGetContactInfo();
   const updateContact = useUpdateContactInfo();
   const [text, setText] = useState("");
@@ -20,7 +20,7 @@ export default function ContactTab() {
 
   const handleSave = async () => {
     try {
-      await updateContact.mutateAsync(text);
+      await updateContact.mutateAsync({ sessionToken, info: text });
       toast.success("Contact info updated.");
     } catch {
       toast.error("Failed to update contact info.");

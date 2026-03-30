@@ -17,7 +17,11 @@ import {
 type ServiceForm = { name: string; description: string; priceRange: string };
 const EMPTY_FORM: ServiceForm = { name: "", description: "", priceRange: "" };
 
-export default function ServicesTab() {
+export default function ServicesTab({
+  sessionToken,
+}: {
+  sessionToken: string;
+}) {
   const { data: services, isLoading } = useGetAllServices();
   const addService = useAddService();
   const updateService = useUpdateService();
@@ -38,7 +42,7 @@ export default function ServicesTab() {
       return;
     }
     try {
-      await addService.mutateAsync(form);
+      await addService.mutateAsync({ sessionToken, ...form });
       setForm(EMPTY_FORM);
       toast.success("Service added.");
     } catch {
@@ -62,7 +66,7 @@ export default function ServicesTab() {
 
   const handleUpdate = async (id: string) => {
     try {
-      await updateService.mutateAsync({ id, ...editForm });
+      await updateService.mutateAsync({ sessionToken, id, ...editForm });
       setEditingId(null);
       toast.success("Service updated.");
     } catch {
@@ -72,7 +76,7 @@ export default function ServicesTab() {
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteService.mutateAsync(id);
+      await deleteService.mutateAsync({ sessionToken, id });
       toast.success("Service deleted.");
     } catch {
       toast.error("Failed to delete service.");

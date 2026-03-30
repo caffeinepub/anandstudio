@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Camera,
-  KeyRound,
+  Eye,
+  EyeOff,
   Loader2,
+  Lock,
+  Mail,
   ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
@@ -17,89 +19,73 @@ import ClientGalleriesTab from "../components/admin/ClientGalleriesTab";
 import ContactTab from "../components/admin/ContactTab";
 import PhotosTab from "../components/admin/PhotosTab";
 import ServicesTab from "../components/admin/ServicesTab";
-import { useActor } from "../hooks/useActor";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useIsAdmin } from "../hooks/useQueries";
+import { useAdminAuth } from "../hooks/useAdminAuth";
 
 export default function AdminPage() {
   const navigate = useNavigate();
-  const { identity, login, loginStatus, clear } = useInternetIdentity();
-  const queryClient = useQueryClient();
-  const { actor } = useActor();
   const {
-    data: isAdmin,
-    isLoading: adminLoading,
-    error: adminError,
-    refetch,
-  } = useIsAdmin();
-  const isAuthenticated = !!identity;
+    sessionToken,
+    isAuthenticated,
+    isLoading,
+    isSetup,
+    login,
+    logout,
+    setupAdmin,
+  } = useAdminAuth();
 
-  const [setupToken, setSetupToken] = useState("");
-  const [claiming, setClaiming] = useState(false);
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogout = async () => {
-    await clear();
-    queryClient.clear();
-    navigate({ to: "/" });
-  };
-
-  const handleClaimAdmin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!actor || !setupToken.trim()) return;
-    setClaiming(true);
+    if (!identifier.trim() || !password.trim()) {
+      toast.error("Please enter your email/phone and password.");
+      return;
+    }
+    setSubmitting(true);
     try {
-      await (actor as any)._initializeAccessControlWithSecret(
-        setupToken.trim(),
-      );
-      toast.success("Admin access claimed! Welcome to Anandstudio.");
-      queryClient.invalidateQueries({ queryKey: ["isAdmin"] });
-      refetch();
+      const ok = await login(identifier.trim(), password.trim());
+      if (!ok) toast.error("Invalid credentials. Please try again.");
     } catch {
-      toast.error("Invalid token. Please check and try again.");
+      toast.error("Login failed. Please try again.");
     } finally {
-      setClaiming(false);
+      setSubmitting(false);
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <div className="text-center max-w-sm">
-          <Camera className="w-10 h-10 text-primary mx-auto mb-6" />
-          <h1 className="font-display text-3xl text-foreground mb-3">
-            Admin Access
-          </h1>
-          <p className="text-muted-foreground text-sm mb-8">
-            Please log in to access the Anandstudio content manager.
-          </p>
-          <Button
-            onClick={() => login()}
-            disabled={loginStatus === "logging-in"}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 tracking-widest uppercase text-xs w-full py-6"
-            data-ocid="admin.primary_button"
-          >
-            {loginStatus === "logging-in" ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Logging in...
-              </>
-            ) : (
-              "Login with Internet Identity"
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => navigate({ to: "/" })}
-            className="mt-4 text-muted-foreground hover:text-foreground w-full"
-            data-ocid="admin.secondary_button"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Site
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const handleSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!identifier.trim() || !password.trim()) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
+    if (password.trim().length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const ok = await setupAdmin(identifier.trim(), password.trim());
+      if (ok) {
+        toast.success("Admin account created! Welcome to Anandstudio.");
+      } else {
+        toast.error("Setup failed. Please try again.");
+      }
+    } catch {
+      toast.error("Setup failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-  if (adminLoading) {
+  const handleLogout = async () => {
+    await logout();
+    navigate({ to: "/" });
+  };
+
+  if (isLoading) {
     return (
       <div
         className="min-h-screen bg-background flex items-center justify-center"
@@ -110,101 +96,215 @@ export default function AdminPage() {
     );
   }
 
-  // Show first-time setup if not admin (either error or returned false)
-  if (!isAdmin) {
-    const isSetupAvailable = adminError || !isAdmin;
+  // First-time setup
+  if (isSetup === false) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <ShieldCheck className="w-12 h-12 text-primary mx-auto mb-6" />
+            <h1 className="font-display text-3xl text-foreground mb-3">
+              Create Admin Account
+            </h1>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Set up your admin credentials to manage Anandstudio. This is a
+              one-time setup.
+            </p>
+          </div>
 
-    if (isSetupAvailable) {
-      return (
-        <div className="min-h-screen bg-background flex items-center justify-center px-6">
-          <div className="max-w-md w-full space-y-8">
-            <div className="text-center">
-              <ShieldCheck className="w-12 h-12 text-primary mx-auto mb-6" />
-              <h1 className="font-display text-3xl text-foreground mb-3">
-                First Time Admin Setup
-              </h1>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                This app uses Internet Identity for secure login. To claim admin
-                access, enter your admin setup token below. You received this
-                token when the app was created.
+          <form
+            onSubmit={handleSetup}
+            className="border border-border p-6 space-y-5"
+          >
+            <div>
+              <label
+                htmlFor="setup-identifier"
+                className="text-xs tracking-widest uppercase text-muted-foreground block mb-2"
+              >
+                Email or Phone Number
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="setup-identifier"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="e.g. anandstudio848@gmail.com"
+                  className="bg-background border-border pl-10"
+                  data-ocid="admin.input"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="setup-password"
+                className="text-xs tracking-widest uppercase text-muted-foreground block mb-2"
+              >
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="setup-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Choose a strong password"
+                  className="bg-background border-border pl-10 pr-10"
+                  data-ocid="admin.input"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 opacity-70">
+                Minimum 6 characters
               </p>
             </div>
 
-            <form
-              onSubmit={handleClaimAdmin}
-              className="border border-border p-6 space-y-5"
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 tracking-widest uppercase text-xs py-5"
+              data-ocid="admin.primary_button"
             >
-              <div>
-                <label
-                  htmlFor="setup-token"
-                  className="text-xs tracking-widest uppercase text-muted-foreground block mb-2"
-                >
-                  Admin Setup Token
-                </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="setup-token"
-                    type="password"
-                    value={setupToken}
-                    onChange={(e) => setSetupToken(e.target.value)}
-                    placeholder="Enter your setup token..."
-                    className="bg-background border-border pl-10"
-                    data-ocid="admin.input"
-                  />
-                </div>
-              </div>
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Setting
+                  up...
+                </>
+              ) : (
+                "Create Admin Account"
+              )}
+            </Button>
+          </form>
 
-              <Button
-                type="submit"
-                disabled={claiming || !setupToken.trim()}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 tracking-widest uppercase text-xs py-5"
-                data-ocid="admin.primary_button"
-              >
-                {claiming ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
-                    Claiming...
-                  </>
-                ) : (
-                  "Claim Admin Access"
-                )}
-              </Button>
-            </form>
-
-            <div className="text-center">
-              <Button
-                variant="ghost"
-                onClick={() => navigate({ to: "/" })}
-                className="text-muted-foreground hover:text-foreground text-sm"
-                data-ocid="admin.secondary_button"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Site
-              </Button>
-            </div>
+          <div className="text-center">
+            <Button
+              variant="ghost"
+              onClick={() => navigate({ to: "/" })}
+              className="text-muted-foreground hover:text-foreground text-sm"
+              data-ocid="admin.secondary_button"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Site
+            </Button>
           </div>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
-    // Fallback: admin is already claimed by someone else
+  // Login screen
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <div className="text-center max-w-sm" data-ocid="admin.error_state">
-          <h1 className="font-display text-3xl text-foreground mb-3">
-            Access Denied
-          </h1>
-          <p className="text-muted-foreground text-sm mb-8">
-            You don't have admin privileges for Anandstudio.
-          </p>
-          <Button
-            variant="outline"
-            onClick={() => navigate({ to: "/" })}
-            className="border-border hover:border-primary"
-            data-ocid="admin.secondary_button"
+        <div className="max-w-sm w-full space-y-8">
+          <div className="text-center">
+            <Camera className="w-10 h-10 text-primary mx-auto mb-6" />
+            <h1 className="font-display text-3xl text-foreground mb-3">
+              Admin Login
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Sign in to manage your Anandstudio website.
+            </p>
+          </div>
+
+          <form
+            onSubmit={handleLogin}
+            className="border border-border p-6 space-y-5"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Site
-          </Button>
+            <div>
+              <label
+                htmlFor="login-identifier"
+                className="text-xs tracking-widest uppercase text-muted-foreground block mb-2"
+              >
+                Email or Phone Number
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="login-identifier"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="e.g. anandstudio848@gmail.com"
+                  className="bg-background border-border pl-10"
+                  data-ocid="admin.input"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="login-password"
+                className="text-xs tracking-widest uppercase text-muted-foreground block mb-2"
+              >
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="login-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="bg-background border-border pl-10 pr-10"
+                  data-ocid="admin.input"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 tracking-widest uppercase text-xs py-5"
+              data-ocid="admin.primary_button"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Signing
+                  in...
+                </>
+              ) : (
+                "Sign In"
+              )}
+            </Button>
+          </form>
+
+          <div className="text-center">
+            <Button
+              variant="ghost"
+              onClick={() => navigate({ to: "/" })}
+              className="text-muted-foreground hover:text-foreground text-sm"
+              data-ocid="admin.secondary_button"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Site
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -276,19 +376,19 @@ export default function AdminPage() {
           </TabsList>
 
           <TabsContent value="photos">
-            <PhotosTab />
+            <PhotosTab sessionToken={sessionToken!} />
           </TabsContent>
           <TabsContent value="client-galleries">
-            <ClientGalleriesTab />
+            <ClientGalleriesTab sessionToken={sessionToken!} />
           </TabsContent>
           <TabsContent value="services">
-            <ServicesTab />
+            <ServicesTab sessionToken={sessionToken!} />
           </TabsContent>
           <TabsContent value="about">
-            <AboutTab />
+            <AboutTab sessionToken={sessionToken!} />
           </TabsContent>
           <TabsContent value="contact">
-            <ContactTab />
+            <ContactTab sessionToken={sessionToken!} />
           </TabsContent>
         </Tabs>
       </main>
